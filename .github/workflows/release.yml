@@ -1,0 +1,54 @@
+name: "Release"
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: "ubuntu-latest"
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4.1.7"
+        with:
+          fetch-depth: ${{ !startsWith(github.ref, 'refs/tags/v') && 20 || 1 }}
+          fetch-tags: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Get current version
+        id: version
+        run: |
+          version=$(git describe --tag --match 'v*.*.*' 2>/dev/null || true)
+
+          if [ -z "${version}" ]; then
+            commit_count=$(git rev-list --all --count)
+            version="0.0.0-${commit_count}-$(git rev-parse --short HEAD)"
+          fi
+
+          echo "version=$version" >> ${GITHUB_ENV}
+
+      - name: "ZIP the integration directory"
+        shell: "bash"
+        run: |
+          set -x
+          cd "${{ github.workspace }}/custom_components/ecocito"
+          jq --arg version ${version} '.version = $version' manifest.json > manifest.tmp.json && mv manifest.tmp.json manifest.json
+          zip ecocito-${version}.zip -r ./
+
+      - name: Publish the release
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: ${{ !startsWith(github.ref, 'refs/tags/v') && 'latest' || null }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          title: ${{ startsWith(github.ref, 'refs/tags/v') && env.version || 'Development Build' }}
+          files: |
+            ${{ github.workspace }}/custom_components/ecocito/ecocito-${{ env.version }}.zip
