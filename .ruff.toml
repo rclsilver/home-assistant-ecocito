@@ -1,0 +1,34 @@
+# The contents of this file is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
+
+target-version = "py312"
+
+[lint]
+select = [
+    "ALL",
+]
+
+ignore = [
+    "ANN101", # Missing type annotation for `self` in method
+    "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
+    "ARG001", # ARG001, we don't use i
+    "D203", # no-blank-line-before-class (incompatible with formatter)
+    "D212", # multi-line-summary-first-line (incompatible with formatter)
+    "COM812", # incompatible with formatter
+    "ISC001", # incompatible with formatter
+
+    # Moving imports into type-checking blocks can mess with pytest.patch()
+    "TCH001", # Move application import {} into a type-checking block
+    "TCH002", # Move third-party import {} into a type-checking block
+    "TCH003", # Move standard library import {} into a type-checking block
+
+    "TRY003", # Avoid specifying long messages outside the exception class
+]
+
+[lint.flake8-pytest-style]
+fixture-parentheses = false
+
+[lint.pyupgrade]
+keep-runtime-typing = true
+
+[lint.mccabe]
+max-complexity = 25
