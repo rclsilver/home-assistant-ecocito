@@ -1,0 +1,12 @@
+{
+  "domain": "ecocito",
+  "name": "ecocito",
+  "codeowners": ["@rclsilver"],
+  "config_flow": true,
+  "integration_type": "service",
+  "documentation": "https://github.com/rclsilver/home-assistant-ecocito",
+  "iot_class": "cloud_polling",
+  "single_config_entry": true,
+  "loggers": ["custom_components.ecocito"],
+  "version": "0.0.0"
+}

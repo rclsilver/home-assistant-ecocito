@@ -1,0 +1,52 @@
+name: "Release"
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions: {}
+
+jobs:
+  release:
+    name: "Release"
+    runs-on: "ubuntu-latest"
+    permissions:
+      contents: write
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4.1.7"
+        with:
+          fetch-depth: ${{ !startsWith(github.ref, 'refs/tags/v') && 20 || 1 }}
+          fetch-tags: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Get current version
+        id: get_version
+        run: |
+          if [ -n "${GITHUB_REF##*refs/tags/*}" ]; then
+            version=${GITHUB_REF#refs/tags/}
+          else
+            version=$(git describe --tag --match 'v*.*.*')
+          fi
+
+          if [ -z "${version}" ]; then
+            commit_count=$(git rev-list --all --count)
+            version="0.0.0-${commit_count}-$(git rev-parse --short HEAD)"
+          fi
+
+          echo "version=$version" >> ${GITHUB_ENV}
+
+      - name: "ZIP the integration directory"
+        shell: "bash"
+        run: |
+          cd "${{ github.workspace }}/custom_components/ecocito"
+          jq --arg version "${version}" '.version = $version' manifest.json > manifest.tmp.json && mv manifest.tmp.json manifest.json
+          cat manifest.json
+          zip ecocito-${version}.zip -r ./
+
+      - name: "Upload the ZIP file to the release"
+        uses: "softprops/action-gh-release@v2.0.8"
+        with:
+          files: ${{ github.workspace }}/custom_components/ecocito/ecocito-${version}.zip

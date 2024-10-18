@@ -1,0 +1,58 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "domain": "Ecocito domain",
+          "username": "Ecocito username",
+          "password": "Ecocito password"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Error while connecting to Ecocito",
+      "invalid_auth": "Authentication error",
+      "unknown": "Unknown error"
+    },
+    "abort": {
+      "already_configured": "Already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "garbage_collections_count": {
+        "name": "Number of garbage collections"
+      },
+      "garbage_collections_total": {
+        "name": "Total weight of collected garbage"
+      },
+      "latest_garbage_collection": {
+        "name": "Weight of the latest garbage collection"
+      },
+      "previous_garbage_collections_count": {
+        "name": "Number of garbage collections (last year)"
+      },
+      "previous_garbage_collections_total": {
+        "name": "Total weight of collected garbage (last year)"
+      },
+      "recycling_collections_count": {
+        "name": "Number of recycling collections"
+      },
+      "recycling_collections_total": {
+        "name": "Total weight of collected recycling"
+      },
+      "latest_recycling_collection": {
+        "name": "Weight of the latest recycling collection"
+      },
+      "previous_recycling_collections_count": {
+        "name": "Number of recycling collections (last year)"
+      },
+      "previous_recycling_collections_total": {
+        "name": "Total weight of collected recycling (last year)"
+      },
+      "waste_deposit_visit": {
+        "name": "Number of visits to waste deposit"
+      }
+    }
+  }
+}
