@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup as bs  # noqa: N813
 
 from .const import (
     ECOCITO_COLLECTION_ENDPOINT,
+    ECOCITO_COLLECTION_TYPE_ENDPOINT,
     ECOCITO_DEFAULT_COLLECTION_TYPE,
     ECOCITO_GARBAGE_COLLECTION_TYPE,
     ECOCITO_LOGIN_ENDPOINT,
@@ -78,6 +79,28 @@ class EcocitoClient:
                     LOGGER.debug("Connected as %s", self._username)
             except aiohttp.ClientError as e:
                 raise EcocitoError(f"Authentication error: {e}") from e
+
+    async def get_collection_types(self) -> dict:
+        """Return the mapping of collection type ID with their label."""
+        async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
+            try:
+                async with session.get(
+                    ECOCITO_COLLECTION_TYPE_ENDPOINT.format(self._domain),
+                    raise_for_status=True,
+                ) as response:
+                    content = await response.text()
+                    html = bs(content, "html.parser")
+                    try:
+                        select = html.find("select", {"id": "Filtres_IdMatiere"})
+                        return {
+                            item.attrs["value"]: item.text
+                            for item in select.find_all("option")
+                            if "value" in item.attrs
+                        }
+                    except Exception as e:  # noqa: BLE001
+                        await self._handle_error(content, e)
+            except aiohttp.ClientError as e:
+                raise EcocitoError(f"Unable to get collection types: {e}") from e
 
     async def get_collection_events(
         self, event_type: str, year: int
