@@ -14,6 +14,9 @@ from .const import (
     ECOCITO_COLLECTION_ENDPOINT,
     ECOCITO_COLLECTION_TYPE_ENDPOINT,
     ECOCITO_DEFAULT_COLLECTION_TYPE,
+    ECOCITO_ERROR_AUTHENTICATION,
+    ECOCITO_ERROR_FETCHING,
+    ECOCITO_ERROR_UNHANDLED,
     ECOCITO_GARBAGE_COLLECTION_TYPE,
     ECOCITO_LOGIN_ENDPOINT,
     ECOCITO_LOGIN_PASSWORD_KEY,
@@ -78,7 +81,7 @@ class EcocitoClient:
                         raise InvalidAuthenticationError(error[0].find("li").text)
                     LOGGER.debug("Connected as %s", self._username)
             except aiohttp.ClientError as e:
-                raise EcocitoError(f"Authentication error: {e}") from e
+                raise EcocitoError(ECOCITO_ERROR_AUTHENTICATION.format(exc=e)) from e
 
     async def get_collection_types(self) -> dict:
         """Return the mapping of collection type ID with their label."""
@@ -100,7 +103,9 @@ class EcocitoClient:
                     except Exception as e:  # noqa: BLE001
                         await self._handle_error(content, e)
             except aiohttp.ClientError as e:
-                raise EcocitoError(f"Unable to get collection types: {e}") from e
+                raise EcocitoError(
+                    ECOCITO_ERROR_FETCHING.format(exc=e, type="collection types")
+                ) from e
 
     async def get_collection_events(
         self, event_type: str, year: int
@@ -138,7 +143,9 @@ class EcocitoClient:
                             await self._handle_error(content, e)
 
             except aiohttp.ClientError as e:
-                raise EcocitoError(f"Unable to get collection events: {e}") from e
+                raise EcocitoError(
+                    ECOCITO_ERROR_FETCHING.format(exc=e, type="collection events")
+                ) from e
 
     async def get_garbage_collections(self, year: int) -> list[CollectionEvent]:
         """Return the list of the garbage collections for a year."""
@@ -179,10 +186,12 @@ class EcocitoClient:
                             await self._handle_error(content, e)
 
             except aiohttp.ClientError as e:
-                raise EcocitoError(f"Unable to get waste deposit visits: {e}") from e
+                raise EcocitoError(
+                    ECOCITO_ERROR_FETCHING.format(exc=e, type="waste deposit events")
+                ) from e
 
-    async def _handle_error(self, content: str, e: Exception):
-        """Handle a request error by checking for login form and re-authenticating if necessary."""
+    async def _handle_error(self, content: str, e: Exception) -> None:
+        """Handle request errors by checking for login form and re-auth if necessary."""
         html = bs(content, "html.parser")
         form = html.find("form", action=re.compile(f"{ECOCITO_LOGIN_URI}"))
 
@@ -190,4 +199,4 @@ class EcocitoClient:
             LOGGER.debug("The session has expired, try to login again.")
             await self.authenticate()
         else:
-            raise EcocitoError("Unhandled request error") from e
+            raise EcocitoError(ECOCITO_ERROR_UNHANDLED) from e

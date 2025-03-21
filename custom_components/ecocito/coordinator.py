@@ -13,7 +13,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .client import CollectionEvent, EcocitoClient, WasteDepotVisit
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, ECOCITO_MESSAGE_REAUTHENTICATE, LOGGER
 from .errors import CannotConnectError, InvalidAuthenticationError
 
 T = TypeVar("T", bound=list[CollectionEvent] | list[WasteDepotVisit])
@@ -46,9 +46,7 @@ class EcocitoDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
         except CannotConnectError as ex:
             raise UpdateFailed(ex) from ex
         except InvalidAuthenticationError as ex:
-            raise ConfigEntryAuthFailed(
-                "Credentials are no longer valid. Please reauthenticate"
-            ) from ex
+            raise ConfigEntryAuthFailed(ECOCITO_MESSAGE_REAUTHENTICATE) from ex
 
     @abstractmethod
     async def _fetch_data(self) -> T:
