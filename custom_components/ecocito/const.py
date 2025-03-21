@@ -32,6 +32,7 @@ ECOCITO_RECYCLING_COLLECTION_TYPE = 16
 
 # Ecocito - Collection endpoint
 ECOCITO_COLLECTION_ENDPOINT = f"https://{ECOCITO_DOMAIN}/Usager/Collecte/GetCollecte"
+ECOCITO_COLLECTION_TYPE_ENDPOINT = f"https://{ECOCITO_DOMAIN}/Usager/Collecte"
 
 # Ecocito - Waste deposit visits
 ECOCITO_WASTE_DEPOSIT_ENDPOINT = f"https://{ECOCITO_DOMAIN}/Usager/Apport/GetApport"
