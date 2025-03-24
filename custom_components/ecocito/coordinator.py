@@ -54,46 +54,30 @@ class EcocitoDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
         """Fetch the actual data."""
         raise NotImplementedError
 
-# TODO Fuse both coordinators? Since there's no hardcoded ID anymore, the duplicate may
-# not really be needed anymore.
-# Also later we could build any number of sensors, not just 2 (possibly only 1 also).
-class GarbageCollectionsDataUpdateCoordinator(
+
+class CollectionDataUpdateCoordinator(
     EcocitoDataUpdateCoordinator[list[CollectionEvent]]
 ):
-    """Garbage collections list update from Ecocito."""
+    """Collections list update from Ecocito."""
 
     def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int, garbage_id: int, refresh_time: int
+        self,
+        hass: HomeAssistant,
+        client: EcocitoClient,
+        year_offset: int,
+        coll_type_id: int,
+        refresh_time: int
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(hass, client, refresh_time)
         self._year_offset = year_offset
-        self._garbage_id = garbage_id
+        self._coll_type_id = coll_type_id
 
     async def _fetch_data(self) -> list[CollectionEvent]:
         """Fetch the data."""
-        return await self.client.get_garbage_collections(
-            datetime.now(tz=self._time_zone).year + self._year_offset, self._garbage_id
-        )
-
-
-class RecyclingCollectionsDataUpdateCoordinator(
-    EcocitoDataUpdateCoordinator[list[CollectionEvent]]
-):
-    """Recycling collections list update from Ecocito."""
-
-    def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int, recycle_id: int, refresh_time: int
-    ) -> None:
-        """Initialize the coordinator."""
-        super().__init__(hass, client, refresh_time)
-        self._year_offset = year_offset
-        self._recycle_id = recycle_id
-
-    async def _fetch_data(self) -> list[CollectionEvent]:
-        """Fetch the data."""
-        return await self.client.get_recycling_collections(
-            datetime.now(tz=self._time_zone).year + self._year_offset, self._recycle_id
+        return await self.client.get_collection_events(
+            str(self._coll_type_id),
+            datetime.now(tz=self._time_zone).year + self._year_offset,
         )
 
 
@@ -103,7 +87,11 @@ class WasteDepotVisitsDataUpdateCoordinator(
     """Waste depot visits list update from Ecocito."""
 
     def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int, refresh_time: int
+        self,
+        hass: HomeAssistant,
+        client: EcocitoClient,
+        year_offset: int,
+        refresh_time: int
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(hass, client, refresh_time)

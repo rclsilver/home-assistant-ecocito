@@ -145,14 +145,6 @@ class EcocitoClient:
                     ECOCITO_ERROR_FETCHING.format(exc=e, type="collection events")
                 ) from e
 
-    async def get_garbage_collections(self, year: int, type_id: int) -> list[CollectionEvent]:
-        """Return the list of the garbage collections for a year."""
-        return await self.get_collection_events(str(type_id), year)
-
-    async def get_recycling_collections(self, year: int, type_id: int) -> list[CollectionEvent]:
-        """Return the list of the recycling collections for a year."""
-        return await self.get_collection_events(str(type_id), year)
-
     async def get_waste_depot_visits(self, year: int) -> list[WasteDepotVisit]:
         """Return the list of the waste depot visits for a year."""
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:

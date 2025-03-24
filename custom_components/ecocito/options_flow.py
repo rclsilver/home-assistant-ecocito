@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import config_entries
+from homeassistant import ConfigFlowResult, config_entries
 from homeassistant.const import CONF_DOMAIN, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers import selector
 
@@ -25,21 +25,21 @@ def build_schema(type_mapping: dict[int, str], current: dict[str, Any]) -> vol.S
     ]
     return vol.Schema(
         {
-            vol.Optional(ECOCITO_GARBAGE_TYPE, default=current[ECOCITO_GARBAGE_TYPE]): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=types_options,
-                    mode=selector.SelectSelectorMode.DROPDOWN,
-                    multiple=False
-                )
-            ),
-            vol.Optional(ECOCITO_RECYCLE_TYPE, default=current[ECOCITO_RECYCLE_TYPE]): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=types_options,
-                    mode=selector.SelectSelectorMode.DROPDOWN,
-                    multiple=False
-                )
-            ),
-            vol.Required(ECOCITO_REFRESH_MIN_KEY, default=current[ECOCITO_REFRESH_MIN_KEY]): int
+            vol.Optional(ECOCITO_GARBAGE_TYPE, default=current[ECOCITO_GARBAGE_TYPE]):
+            selector.SelectSelector(selector.SelectSelectorConfig(
+                options=types_options,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                multiple=False
+            )),
+            vol.Optional(ECOCITO_RECYCLE_TYPE, default=current[ECOCITO_RECYCLE_TYPE]):
+            selector.SelectSelector(selector.SelectSelectorConfig(
+                options=types_options,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                multiple=False
+            )),
+            vol.Required(
+                ECOCITO_REFRESH_MIN_KEY, default=current[ECOCITO_REFRESH_MIN_KEY]
+            ): int
         }
     )
 
@@ -63,20 +63,26 @@ class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
 
     async def update_config(self, user_input: dict[str, Any]) -> None:
         """Update configuration with new user input."""
-        # TODO Sanitize user input
         new_data = dict(self._entry.data)
-        if user_input[ECOCITO_GARBAGE_TYPE] != new_data.get(ECOCITO_GARBAGE_TYPE):
-            new_data[ECOCITO_GARBAGE_TYPE] = int(user_input[ECOCITO_GARBAGE_TYPE])
-        if user_input[ECOCITO_RECYCLE_TYPE] != new_data.get(ECOCITO_RECYCLE_TYPE):
-            new_data[ECOCITO_RECYCLE_TYPE] = int(user_input[ECOCITO_RECYCLE_TYPE])
-        if user_input[ECOCITO_REFRESH_MIN_KEY] != new_data.get(ECOCITO_REFRESH_MIN_KEY):
-            new_data[ECOCITO_REFRESH_MIN_KEY] = int(user_input[ECOCITO_REFRESH_MIN_KEY])
+        for key in [
+            ECOCITO_GARBAGE_TYPE,
+            ECOCITO_RECYCLE_TYPE,
+            ECOCITO_REFRESH_MIN_KEY,
+        ]:
+            if key not in user_input:
+                continue
+            int_val = int(user_input[key])
+            if (key not in new_data or int_val != new_data.get(key)) and int_val > 0:
+                new_data[key] = int_val
         self.hass.config_entries.async_update_entry(
             self._entry, data=new_data
         )
         await self.hass.config_entries.async_reload(self._entry.entry_id)
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None):
+    async def async_step_init(
+            self,
+            user_input: dict[str, Any] | None = None
+        ) -> ConfigFlowResult:
         """Display configuration menu."""
         errors: dict[str, str] = {}
         if user_input is not None:
@@ -85,7 +91,9 @@ class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
         placeholders = {
             ECOCITO_GARBAGE_TYPE: str(self._entry.data.get(ECOCITO_GARBAGE_TYPE, 15)),
             ECOCITO_RECYCLE_TYPE: str(self._entry.data.get(ECOCITO_RECYCLE_TYPE, 16)),
-            ECOCITO_REFRESH_MIN_KEY: int(self._entry.data.get(ECOCITO_REFRESH_MIN_KEY, 60)),
+            ECOCITO_REFRESH_MIN_KEY: int(
+                self._entry.data.get(ECOCITO_REFRESH_MIN_KEY, 60)
+            ),
         }
         schema = build_schema(await self.get_type_mapping(), placeholders)
         return self.async_show_form(
