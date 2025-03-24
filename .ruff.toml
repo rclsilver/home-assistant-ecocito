@@ -22,6 +22,11 @@ ignore = [
     "TC003", # Move standard library import {} into a type-checking block
 
     "TRY003", # Avoid specifying long messages outside the exception class
+
+    # Relative to todos
+    "TD002", # Missing author in todo
+    "TD003", # Missing issue link in todo
+    "FIX002", # Resolve the todo
 ]
 
 [lint.flake8-pytest-style]
