@@ -9,6 +9,14 @@ from homeassistant.const import CONF_DOMAIN, CONF_PASSWORD, CONF_USERNAME, Platf
 from homeassistant.core import HomeAssistant
 
 from .client import EcocitoClient
+from .const import (
+    ECOCITO_DEFAULT_REFRESH_MIN,
+    ECOCITO_GARBAGE_COLLECTION_TYPE,
+    ECOCITO_GARBAGE_TYPE,
+    ECOCITO_RECYCLE_TYPE,
+    ECOCITO_RECYCLING_COLLECTION_TYPE,
+    ECOCITO_REFRESH_MIN_KEY,
+)
 from .coordinator import (
     GarbageCollectionsDataUpdateCoordinator,
     RecyclingCollectionsDataUpdateCoordinator,
@@ -40,18 +48,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
         entry.data[CONF_PASSWORD],
     )
     await client.authenticate()
+
+    garbage_id = entry.data.get(ECOCITO_GARBAGE_TYPE, ECOCITO_GARBAGE_COLLECTION_TYPE)
+    recycle_id = entry.data.get(ECOCITO_RECYCLE_TYPE, ECOCITO_RECYCLING_COLLECTION_TYPE)
+    refresh_time = entry.data.get(ECOCITO_REFRESH_MIN_KEY, ECOCITO_DEFAULT_REFRESH_MIN)
     data = EcocitoData(
-        garbage_collections=GarbageCollectionsDataUpdateCoordinator(hass, client, 0),
+        garbage_collections=GarbageCollectionsDataUpdateCoordinator(hass, client, 0, garbage_id, refresh_time),
         garbage_collections_previous=GarbageCollectionsDataUpdateCoordinator(
-            hass, client, -1
+            hass, client, -1, garbage_id, refresh_time
         ),
         recycling_collections=RecyclingCollectionsDataUpdateCoordinator(
-            hass, client, 0
+            hass, client, 0, recycle_id, refresh_time
         ),
         recycling_collections_previous=RecyclingCollectionsDataUpdateCoordinator(
-            hass, client, -1
+            hass, client, -1, recycle_id, refresh_time
         ),
-        waste_depot_visits=WasteDepotVisitsDataUpdateCoordinator(hass, client, 0),
+        waste_depot_visits=WasteDepotVisitsDataUpdateCoordinator(hass, client, 0, refresh_time),
     )
     for field in fields(data):
         coordinator = getattr(data, field.name)

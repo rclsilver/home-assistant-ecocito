@@ -17,12 +17,10 @@ from .const import (
     ECOCITO_ERROR_AUTHENTICATION,
     ECOCITO_ERROR_FETCHING,
     ECOCITO_ERROR_UNHANDLED,
-    ECOCITO_GARBAGE_COLLECTION_TYPE,
     ECOCITO_LOGIN_ENDPOINT,
     ECOCITO_LOGIN_PASSWORD_KEY,
     ECOCITO_LOGIN_URI,
     ECOCITO_LOGIN_USERNAME_KEY,
-    ECOCITO_RECYCLING_COLLECTION_TYPE,
     ECOCITO_WASTE_DEPOSIT_ENDPOINT,
     LOGGER,
 )
@@ -83,7 +81,7 @@ class EcocitoClient:
             except aiohttp.ClientError as e:
                 raise EcocitoError(ECOCITO_ERROR_AUTHENTICATION.format(exc=e)) from e
 
-    async def get_collection_types(self) -> dict:
+    async def get_collection_types(self) -> dict[int, str]:
         """Return the mapping of collection type ID with their label."""
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
             try:
@@ -96,7 +94,7 @@ class EcocitoClient:
                     try:
                         select = html.find("select", {"id": "Filtres_IdMatiere"})
                         return {
-                            item.attrs["value"]: item.text
+                            int(item.attrs["value"]): item.text
                             for item in select.find_all("option")
                             if "value" in item.attrs
                         }
@@ -147,13 +145,13 @@ class EcocitoClient:
                     ECOCITO_ERROR_FETCHING.format(exc=e, type="collection events")
                 ) from e
 
-    async def get_garbage_collections(self, year: int) -> list[CollectionEvent]:
+    async def get_garbage_collections(self, year: int, type_id: int) -> list[CollectionEvent]:
         """Return the list of the garbage collections for a year."""
-        return await self.get_collection_events(ECOCITO_GARBAGE_COLLECTION_TYPE, year)
+        return await self.get_collection_events(str(type_id), year)
 
-    async def get_recycling_collections(self, year: int) -> list[CollectionEvent]:
+    async def get_recycling_collections(self, year: int, type_id: int) -> list[CollectionEvent]:
         """Return the list of the recycling collections for a year."""
-        return await self.get_collection_events(ECOCITO_RECYCLING_COLLECTION_TYPE, year)
+        return await self.get_collection_events(str(type_id), year)
 
     async def get_waste_depot_visits(self, year: int) -> list[WasteDepotVisit]:
         """Return the list of the waste depot visits for a year."""
