@@ -8,7 +8,7 @@ select = [
 ]
 
 ignore = [
-    "ANN101", # Missing type annotation for `self` in method
+    # "ANN101", # Missing type annotation for `self` in method
     "ANN401", # Dynamically typed expressions (typing.Any) are disallowed
     "ARG001", # ARG001, we don't use i
     "D203", # no-blank-line-before-class (incompatible with formatter)
@@ -17,9 +17,9 @@ ignore = [
     "ISC001", # incompatible with formatter
 
     # Moving imports into type-checking blocks can mess with pytest.patch()
-    "TCH001", # Move application import {} into a type-checking block
-    "TCH002", # Move third-party import {} into a type-checking block
-    "TCH003", # Move standard library import {} into a type-checking block
+    "TC001", # Move application import {} into a type-checking block
+    "TC002", # Move third-party import {} into a type-checking block
+    "TC003", # Move standard library import {} into a type-checking block
 
     "TRY003", # Avoid specifying long messages outside the exception class
 ]
