@@ -17,7 +17,7 @@ from .const import (
 )
 
 
-def build_schema(type_mapping: dict[int, str], current: dict[str, Any]) -> vol.Schema:
+def build_schema(type_mapping: dict[int, str], defaults: dict[str, Any]) -> vol.Schema:
     """Build the schema."""
     types_options = [
         {"value": str(type_id), "label": type_label}
@@ -25,23 +25,31 @@ def build_schema(type_mapping: dict[int, str], current: dict[str, Any]) -> vol.S
     ]
     return vol.Schema(
         {
-            vol.Optional(ECOCITO_GARBAGE_TYPE, default=current[ECOCITO_GARBAGE_TYPE]):
-            selector.SelectSelector(selector.SelectSelectorConfig(
-                options=types_options,
-                mode=selector.SelectSelectorMode.DROPDOWN,
-                multiple=False
-            )),
-            vol.Optional(ECOCITO_RECYCLE_TYPE, default=current[ECOCITO_RECYCLE_TYPE]):
-            selector.SelectSelector(selector.SelectSelectorConfig(
-                options=types_options,
-                mode=selector.SelectSelectorMode.DROPDOWN,
-                multiple=False
-            )),
+            vol.Optional(
+                ECOCITO_GARBAGE_TYPE,
+                default=defaults[ECOCITO_GARBAGE_TYPE],
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=types_options,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                    multiple=False,
+                )
+            ),
+            vol.Optional(
+                ECOCITO_RECYCLE_TYPE, default=defaults[ECOCITO_RECYCLE_TYPE]
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=types_options,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                    multiple=False,
+                )
+            ),
             vol.Required(
-                ECOCITO_REFRESH_MIN_KEY, default=current[ECOCITO_REFRESH_MIN_KEY]
-            ): int
+                ECOCITO_REFRESH_MIN_KEY, default=defaults[ECOCITO_REFRESH_MIN_KEY]
+            ): int,
         }
     )
+
 
 class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle an option flow for ecocito."""
@@ -49,7 +57,6 @@ class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
     def __init__(self, entry: config_entries.ConfigEntry) -> None:
         """Init."""
         self._entry = entry
-
 
     async def get_type_mapping(self) -> dict[int, str]:
         """Build client from config."""
@@ -74,30 +81,23 @@ class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
             int_val = int(user_input[key])
             if (key not in new_data or int_val != new_data.get(key)) and int_val > 0:
                 new_data[key] = int_val
-        self.hass.config_entries.async_update_entry(
-            self._entry, data=new_data
-        )
+        self.hass.config_entries.async_update_entry(self._entry, data=new_data)
         await self.hass.config_entries.async_reload(self._entry.entry_id)
 
     async def async_step_init(
-            self,
-            user_input: dict[str, Any] | None = None
-        ) -> config_entries.ConfigFlowResult:
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
         """Display configuration menu."""
         errors: dict[str, str] = {}
         if user_input is not None:
             await self.update_config(user_input)
             return self.async_abort(reason="Changes saved.")
-        placeholders = {
+        defaults = {
             ECOCITO_GARBAGE_TYPE: str(self._entry.data.get(ECOCITO_GARBAGE_TYPE, 15)),
             ECOCITO_RECYCLE_TYPE: str(self._entry.data.get(ECOCITO_RECYCLE_TYPE, 16)),
             ECOCITO_REFRESH_MIN_KEY: int(
                 self._entry.data.get(ECOCITO_REFRESH_MIN_KEY, 60)
             ),
         }
-        schema = build_schema(await self.get_type_mapping(), placeholders)
-        return self.async_show_form(
-            step_id="init",
-            data_schema=schema,
-            errors=errors
-        )
+        schema = build_schema(await self.get_type_mapping(), defaults)
+        return self.async_show_form(step_id="init", data_schema=schema, errors=errors)
