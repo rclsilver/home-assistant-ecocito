@@ -19,8 +19,6 @@ from .const import (
 )
 from .coordinator import (
     CollectionDataUpdateCoordinator,
-    # GarbageCollectionsDataUpdateCoordinator,
-    # RecyclingCollectionsDataUpdateCoordinator,
     WasteDepotVisitsDataUpdateCoordinator,
 )
 

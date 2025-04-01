@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import ConfigFlowResult, config_entries
+from homeassistant import config_entries
 from homeassistant.const import CONF_DOMAIN, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.helpers import selector
 
@@ -46,9 +46,9 @@ def build_schema(type_mapping: dict[int, str], current: dict[str, Any]) -> vol.S
 class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
     """Handle an option flow for ecocito."""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+    def __init__(self, entry: config_entries.ConfigEntry) -> None:
         """Init."""
-        self._entry = config_entry
+        self._entry = entry
 
 
     async def get_type_mapping(self) -> dict[int, str]:
@@ -82,7 +82,7 @@ class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
     async def async_step_init(
             self,
             user_input: dict[str, Any] | None = None
-        ) -> ConfigFlowResult:
+        ) -> config_entries.ConfigFlowResult:
         """Display configuration menu."""
         errors: dict[str, str] = {}
         if user_input is not None:
