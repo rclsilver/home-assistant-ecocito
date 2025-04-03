@@ -237,5 +237,6 @@ async def async_setup_entry(
     entities: list[EcocitoSensor[Any]] = []
     for coordinator_type, description in SENSOR_TYPES:
         coordinator = getattr(entry.runtime_data, coordinator_type)
-        entities.append(EcocitoSensor(coordinator, description))
+        if coordinator:
+            entities.append(EcocitoSensor(coordinator, description))
     async_add_entities(entities)

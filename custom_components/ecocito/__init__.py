@@ -11,10 +11,8 @@ from homeassistant.core import HomeAssistant
 from .client import EcocitoClient
 from .const import (
     ECOCITO_DEFAULT_REFRESH_MIN,
-    ECOCITO_GARBAGE_COLLECTION_TYPE,
     ECOCITO_GARBAGE_TYPE,
     ECOCITO_RECYCLE_TYPE,
-    ECOCITO_RECYCLING_COLLECTION_TYPE,
     ECOCITO_REFRESH_MIN_KEY,
 )
 from .coordinator import (
@@ -29,13 +27,11 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 class EcocitoData:
     """Ecocito data type."""
 
-    # TODO: Possibly at some point we can build dynamic sensors depending on user needs
-
-    garbage_collections: CollectionDataUpdateCoordinator
-    garbage_collections_previous: CollectionDataUpdateCoordinator
-    recycling_collections: CollectionDataUpdateCoordinator
-    recycling_collections_previous: CollectionDataUpdateCoordinator
-    waste_depot_visits: WasteDepotVisitsDataUpdateCoordinator
+    garbage_collections: CollectionDataUpdateCoordinator | None
+    garbage_collections_previous: CollectionDataUpdateCoordinator | None
+    recycling_collections: CollectionDataUpdateCoordinator | None
+    recycling_collections_previous: CollectionDataUpdateCoordinator | None
+    waste_depot_visits: WasteDepotVisitsDataUpdateCoordinator  # Maybe we could have an optional here if we had some checkbox config?
 
 
 type EcocitoConfigEntry = ConfigEntry[EcocitoData]
@@ -50,29 +46,31 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
     )
     await client.authenticate()
 
-    garbage_id = entry.data.get(ECOCITO_GARBAGE_TYPE, ECOCITO_GARBAGE_COLLECTION_TYPE)
-    recycle_id = entry.data.get(ECOCITO_RECYCLE_TYPE, ECOCITO_RECYCLING_COLLECTION_TYPE)
+    garbage_id = entry.data.get(ECOCITO_GARBAGE_TYPE)
+    recycle_id = entry.data.get(ECOCITO_RECYCLE_TYPE)
     refresh_time = entry.data.get(ECOCITO_REFRESH_MIN_KEY, ECOCITO_DEFAULT_REFRESH_MIN)
+
     data = EcocitoData(
         garbage_collections=CollectionDataUpdateCoordinator(
             hass, client, 0, garbage_id, refresh_time
-        ),
+        ) if garbage_id is not None else None,
         garbage_collections_previous=CollectionDataUpdateCoordinator(
             hass, client, -1, garbage_id, refresh_time
-        ),
+        ) if garbage_id is not None else None,
         recycling_collections=CollectionDataUpdateCoordinator(
             hass, client, 0, recycle_id, refresh_time
-        ),
+        ) if recycle_id is not None else None,
         recycling_collections_previous=CollectionDataUpdateCoordinator(
             hass, client, -1, recycle_id, refresh_time
-        ),
+        ) if recycle_id is not None else None,
         waste_depot_visits=WasteDepotVisitsDataUpdateCoordinator(
             hass, client, 0, refresh_time
         ),
     )
     for field in fields(data):
         coordinator = getattr(data, field.name)
-        await coordinator.async_config_entry_first_refresh()
+        if coordinator:
+            await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = data
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

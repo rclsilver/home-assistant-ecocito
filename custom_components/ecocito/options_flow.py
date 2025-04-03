@@ -16,6 +16,9 @@ from .const import (
     ECOCITO_REFRESH_MIN_KEY,
 )
 
+# Hardcode a value for "skip synchro"
+# -> it seems empty value would fill in previous known value
+SKIP_SYNC_VALUE = "-42"
 
 def build_schema(type_mapping: dict[int, str], current: dict[str, Any]) -> vol.Schema:
     """Build the schema."""
@@ -23,6 +26,10 @@ def build_schema(type_mapping: dict[int, str], current: dict[str, Any]) -> vol.S
         {"value": str(type_id), "label": type_label}
         for type_id, type_label in type_mapping.items()
     ]
+    types_options.append({
+        "value": SKIP_SYNC_VALUE,
+        "label": "Skip synchro"
+    })
     return vol.Schema(
         {
             vol.Optional(ECOCITO_GARBAGE_TYPE, default=current[ECOCITO_GARBAGE_TYPE]):
@@ -71,6 +78,9 @@ class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
         ]:
             if key not in user_input:
                 continue
+            if user_input[key] == SKIP_SYNC_VALUE:
+                new_data.pop(key, None)  # = None
+                continue
             int_val = int(user_input[key])
             if (key not in new_data or int_val != new_data.get(key)) and int_val > 0:
                 new_data[key] = int_val
@@ -89,8 +99,8 @@ class EcocitoOptionsFlowHandler(config_entries.OptionsFlow):
             await self.update_config(user_input)
             return self.async_abort(reason="Changes saved.")
         placeholders = {
-            ECOCITO_GARBAGE_TYPE: str(self._entry.data.get(ECOCITO_GARBAGE_TYPE, 15)),
-            ECOCITO_RECYCLE_TYPE: str(self._entry.data.get(ECOCITO_RECYCLE_TYPE, 16)),
+            ECOCITO_GARBAGE_TYPE: str(self._entry.data.get(ECOCITO_GARBAGE_TYPE, SKIP_SYNC_VALUE)),
+            ECOCITO_RECYCLE_TYPE: str(self._entry.data.get(ECOCITO_RECYCLE_TYPE, SKIP_SYNC_VALUE)),
             ECOCITO_REFRESH_MIN_KEY: int(
                 self._entry.data.get(ECOCITO_REFRESH_MIN_KEY, 60)
             ),
