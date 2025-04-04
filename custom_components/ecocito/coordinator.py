@@ -13,7 +13,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .client import CollectionEvent, EcocitoClient, WasteDepotVisit
-from .const import DOMAIN, LOGGER
+from .const import DOMAIN, ECOCITO_MESSAGE_REAUTHENTICATE, LOGGER
 from .errors import CannotConnectError, InvalidAuthenticationError
 
 T = TypeVar("T", bound=list[CollectionEvent] | list[WasteDepotVisit])
@@ -28,13 +28,14 @@ class EcocitoDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
         self,
         hass: HomeAssistant,
         client: EcocitoClient,
+        refresh_interval: int = 60
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(
             hass=hass,
             logger=LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(minutes=5),
+            update_interval=timedelta(minutes=refresh_interval),
         )
         self.client = client
         self._time_zone = ZoneInfo(hass.config.time_zone)
@@ -46,9 +47,7 @@ class EcocitoDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
         except CannotConnectError as ex:
             raise UpdateFailed(ex) from ex
         except InvalidAuthenticationError as ex:
-            raise ConfigEntryAuthFailed(
-                "Credentials are no longer valid. Please reauthenticate"
-            ) from ex
+            raise ConfigEntryAuthFailed(ECOCITO_MESSAGE_REAUTHENTICATE) from ex
 
     @abstractmethod
     async def _fetch_data(self) -> T:
@@ -56,42 +55,27 @@ class EcocitoDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
         raise NotImplementedError
 
 
-class GarbageCollectionsDataUpdateCoordinator(
+class CollectionDataUpdateCoordinator(
     EcocitoDataUpdateCoordinator[list[CollectionEvent]]
 ):
-    """Garbage collections list update from Ecocito."""
+    """Collections list update from Ecocito."""
 
     def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int
+        self,
+        hass: HomeAssistant,
+        client: EcocitoClient,
+        refresh_time: int
     ) -> None:
         """Initialize the coordinator."""
-        super().__init__(hass, client)
-        self._year_offset = year_offset
+        self.cached: dict[str, dict[str, list[CollectionEvent]]] | None = None
+        super().__init__(hass, client, refresh_time)
 
     async def _fetch_data(self) -> list[CollectionEvent]:
         """Fetch the data."""
-        return await self.client.get_garbage_collections(
-            datetime.now(tz=self._time_zone).year + self._year_offset
-        )
-
-
-class RecyclingCollectionsDataUpdateCoordinator(
-    EcocitoDataUpdateCoordinator[list[CollectionEvent]]
-):
-    """Recycling collections list update from Ecocito."""
-
-    def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int
-    ) -> None:
-        """Initialize the coordinator."""
-        super().__init__(hass, client)
-        self._year_offset = year_offset
-
-    async def _fetch_data(self) -> list[CollectionEvent]:
-        """Fetch the data."""
-        return await self.client.get_recycling_collections(
-            datetime.now(tz=self._time_zone).year + self._year_offset
-        )
+        if self.cached is None:
+            self.cached = await self.client.get_collection_events(datetime.now(tz=self._time_zone).year)
+        
+        return self.cached
 
 
 class WasteDepotVisitsDataUpdateCoordinator(
@@ -100,10 +84,14 @@ class WasteDepotVisitsDataUpdateCoordinator(
     """Waste depot visits list update from Ecocito."""
 
     def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int
+        self,
+        hass: HomeAssistant,
+        client: EcocitoClient,
+        year_offset: int,
+        refresh_time: int
     ) -> None:
         """Initialize the coordinator."""
-        super().__init__(hass, client)
+        super().__init__(hass, client, refresh_time)
         self._year_offset = year_offset
 
     async def _fetch_data(self) -> list[CollectionEvent]:

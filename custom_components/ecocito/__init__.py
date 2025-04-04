@@ -9,9 +9,14 @@ from homeassistant.const import CONF_DOMAIN, CONF_PASSWORD, CONF_USERNAME, Platf
 from homeassistant.core import HomeAssistant
 
 from .client import EcocitoClient
+from .const import (
+    ECOCITO_DEFAULT_REFRESH_MIN,
+    ECOCITO_GARBAGE_TYPE,
+    ECOCITO_RECYCLE_TYPE,
+    ECOCITO_REFRESH_MIN_KEY,
+)
 from .coordinator import (
-    GarbageCollectionsDataUpdateCoordinator,
-    RecyclingCollectionsDataUpdateCoordinator,
+    CollectionDataUpdateCoordinator,
     WasteDepotVisitsDataUpdateCoordinator,
 )
 
@@ -22,10 +27,8 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 class EcocitoData:
     """Ecocito data type."""
 
-    garbage_collections: GarbageCollectionsDataUpdateCoordinator
-    garbage_collections_previous: GarbageCollectionsDataUpdateCoordinator
-    recycling_collections: RecyclingCollectionsDataUpdateCoordinator
-    recycling_collections_previous: RecyclingCollectionsDataUpdateCoordinator
+    collection_types: dict[int, str]
+    collections: CollectionDataUpdateCoordinator
     waste_depot_visits: WasteDepotVisitsDataUpdateCoordinator
 
 
@@ -40,22 +43,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
         entry.data[CONF_PASSWORD],
     )
     await client.authenticate()
+
+    refresh_time = entry.data.get(ECOCITO_REFRESH_MIN_KEY, ECOCITO_DEFAULT_REFRESH_MIN)
+
+    collect_types = await client.get_collection_types()
+
     data = EcocitoData(
-        garbage_collections=GarbageCollectionsDataUpdateCoordinator(hass, client, 0),
-        garbage_collections_previous=GarbageCollectionsDataUpdateCoordinator(
-            hass, client, -1
+        collection_types = collect_types,
+        collections = CollectionDataUpdateCoordinator(
+            hass, client, refresh_time
         ),
-        recycling_collections=RecyclingCollectionsDataUpdateCoordinator(
-            hass, client, 0
+        waste_depot_visits=WasteDepotVisitsDataUpdateCoordinator(
+            hass, client, 0, refresh_time
         ),
-        recycling_collections_previous=RecyclingCollectionsDataUpdateCoordinator(
-            hass, client, -1
-        ),
-        waste_depot_visits=WasteDepotVisitsDataUpdateCoordinator(hass, client, 0),
     )
-    for field in fields(data):
-        coordinator = getattr(data, field.name)
-        await coordinator.async_config_entry_first_refresh()
+    await data.collections.async_config_entry_first_refresh()
+    await data.waste_depot_visits.async_config_entry_first_refresh()
+
     entry.runtime_data = data
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

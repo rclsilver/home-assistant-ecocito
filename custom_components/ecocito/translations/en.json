@@ -20,19 +20,19 @@
   },
   "entity": {
     "sensor": {
-      "garbage_collections_count": {
+      "garbage_collections_count_current_year": {
         "name": "Number of garbage collections"
       },
-      "garbage_collections_total": {
+      "garbage_collections_total_current_year": {
         "name": "Total weight of collected garbage"
       },
-      "latest_garbage_collection": {
+      "latest_garbage_collection_current_year": {
         "name": "Weight of the latest garbage collection"
       },
-      "previous_garbage_collections_count": {
+      "garbage_collections_count_last_year": {
         "name": "Number of garbage collections (last year)"
       },
-      "previous_garbage_collections_total": {
+      "garbage_collections_total_last_year": {
         "name": "Total weight of collected garbage (last year)"
       },
       "recycling_collections_count": {
