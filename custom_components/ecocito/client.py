@@ -106,8 +106,8 @@ class EcocitoClient:
                 ) from e
 
     async def get_collection_events(
-        self, event_type: str, year: int
-    ) -> list[CollectionEvent]:
+        self, year: int
+    ) -> dict[str, dict[str, CollectionEvent]]:
         """Return the list of the collection events for a type and a year."""
         async with aiohttp.ClientSession(cookie_jar=self._cookies) as session:
             try:
@@ -119,8 +119,8 @@ class EcocitoClient:
                             "skip": "0",
                             "take": "1000",
                             "requireTotalCount": "true",
-                            "idMatiere": str(event_type),
-                            "dateDebut": f"{year}-01-01T00:00:00.000Z",
+                            "idMatiere": str(-1),
+                            "dateDebut": f"{year - 1}-01-01T00:00:00.000Z",
                             "dateFin": f"{year}-12-31T23:59:59.999Z",
                         },
                         raise_for_status=True,
@@ -128,15 +128,24 @@ class EcocitoClient:
                         content = await response.text()
 
                         try:
-                            return [
-                                CollectionEvent(
-                                    type=event_type,
-                                    date=datetime.fromisoformat(row["DATE_DONNEE"]),
-                                    location=row["LIBELLE_ADRESSE"],
-                                    quantity=row["QUANTITE_NETTE"],
+                            result = {}
+                            for row in json.loads(content).get("data", []):
+                                date = datetime.fromisoformat(row["DATE_DONNEE"])
+                                y = "current" if date.year == year else "last"
+                                matter = row["ID_MATIERE"]
+                                if y not in result:
+                                    result[y] = {}
+                                if matter not in result[y]:
+                                    result[y][matter] = []
+                                result[y][matter].append(
+                                    CollectionEvent(
+                                        type=matter,
+                                        date=date,
+                                        location=row["LIBELLE_ADRESSE"],
+                                        quantity=row["QUANTITE_NETTE"],
+                                    )
                                 )
-                                for row in json.loads(content).get("data", [])
-                            ]
+                            return result
                         except Exception as e:  # noqa: BLE001
                             await self._handle_error(content, e)
 

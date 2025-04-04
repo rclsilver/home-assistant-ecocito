@@ -27,11 +27,9 @@ PLATFORMS: list[Platform] = [Platform.SENSOR]
 class EcocitoData:
     """Ecocito data type."""
 
-    garbage_collections: CollectionDataUpdateCoordinator | None
-    garbage_collections_previous: CollectionDataUpdateCoordinator | None
-    recycling_collections: CollectionDataUpdateCoordinator | None
-    recycling_collections_previous: CollectionDataUpdateCoordinator | None
-    waste_depot_visits: WasteDepotVisitsDataUpdateCoordinator  # Maybe we could have an optional here if we had some checkbox config?
+    collection_types: dict[int, str]
+    collections: CollectionDataUpdateCoordinator
+    waste_depot_visits: WasteDepotVisitsDataUpdateCoordinator
 
 
 type EcocitoConfigEntry = ConfigEntry[EcocitoData]
@@ -46,31 +44,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
     )
     await client.authenticate()
 
-    garbage_id = entry.data.get(ECOCITO_GARBAGE_TYPE)
-    recycle_id = entry.data.get(ECOCITO_RECYCLE_TYPE)
     refresh_time = entry.data.get(ECOCITO_REFRESH_MIN_KEY, ECOCITO_DEFAULT_REFRESH_MIN)
 
+    collect_types = await client.get_collection_types()
+
     data = EcocitoData(
-        garbage_collections=CollectionDataUpdateCoordinator(
-            hass, client, 0, garbage_id, refresh_time
-        ) if garbage_id is not None else None,
-        garbage_collections_previous=CollectionDataUpdateCoordinator(
-            hass, client, -1, garbage_id, refresh_time
-        ) if garbage_id is not None else None,
-        recycling_collections=CollectionDataUpdateCoordinator(
-            hass, client, 0, recycle_id, refresh_time
-        ) if recycle_id is not None else None,
-        recycling_collections_previous=CollectionDataUpdateCoordinator(
-            hass, client, -1, recycle_id, refresh_time
-        ) if recycle_id is not None else None,
+        collection_types = collect_types,
+        collections = CollectionDataUpdateCoordinator(
+            hass, client, refresh_time
+        ),
         waste_depot_visits=WasteDepotVisitsDataUpdateCoordinator(
             hass, client, 0, refresh_time
         ),
     )
-    for field in fields(data):
-        coordinator = getattr(data, field.name)
-        if coordinator:
-            await coordinator.async_config_entry_first_refresh()
+    await data.collections.async_config_entry_first_refresh()
+    await data.waste_depot_visits.async_config_entry_first_refresh()
+
     entry.runtime_data = data
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 

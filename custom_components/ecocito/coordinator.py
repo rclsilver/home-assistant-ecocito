@@ -64,21 +64,18 @@ class CollectionDataUpdateCoordinator(
         self,
         hass: HomeAssistant,
         client: EcocitoClient,
-        year_offset: int,
-        coll_type_id: int,
         refresh_time: int
     ) -> None:
         """Initialize the coordinator."""
+        self.cached: dict[str, dict[str, list[CollectionEvent]]] | None = None
         super().__init__(hass, client, refresh_time)
-        self._year_offset = year_offset
-        self._coll_type_id = coll_type_id
 
     async def _fetch_data(self) -> list[CollectionEvent]:
         """Fetch the data."""
-        return await self.client.get_collection_events(
-            str(self._coll_type_id),
-            datetime.now(tz=self._time_zone).year + self._year_offset,
-        )
+        if self.cached is None:
+            self.cached = await self.client.get_collection_events(datetime.now(tz=self._time_zone).year)
+        
+        return self.cached
 
 
 class WasteDepotVisitsDataUpdateCoordinator(
