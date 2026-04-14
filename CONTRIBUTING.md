@@ -44,17 +44,54 @@ People _love_ thorough bug reports. I'm not even kidding.
 
 ## Use a Consistent Coding Style
 
-Use [black](https://github.com/ambv/black) to make sure the code follows the style.
+Use [ruff](https://docs.astral.sh/ruff/) to make sure the code follows the style (see `script/lint`).
 
-## Test your code modification
+## Development environment
 
-This custom component is based on [integration_blueprint template](https://github.com/ludeeus/integration_blueprint).
+### With Docker / VS Code Dev Container
 
-It comes with development environment in a container, easy to launch
-if you use Visual Studio Code. With this container you will have a stand alone
-Home Assistant instance running and already configured with the included
-[`configuration.yaml`](./config/configuration.yaml)
-file.
+This project includes a Dev Container configuration for Visual Studio Code. With this container
+you will have a standalone Home Assistant instance running and already configured with the included
+[`configuration.yaml`](./config/configuration.yaml) file.
+
+### With NixOS / Nix Flakes
+
+This project provides a `flake.nix` for a reproducible development environment on NixOS or any
+system with Nix installed.
+
+**Prerequisites:**
+- [Nix](https://nixos.org/download/) with [Flakes enabled](https://wiki.nixos.org/wiki/Flakes)
+- [direnv](https://direnv.net/) (optional, but recommended for automatic activation)
+
+**Getting started:**
+
+```bash
+# Option 1 — automatic activation with direnv (recommended)
+direnv allow
+
+# Option 2 — manual activation
+nix develop
+```
+
+On first activation, the shell will automatically:
+1. Create a `.venv` Python 3.12 virtual environment
+2. Install all dependencies from `requirements.txt` (including Home Assistant)
+
+**Daily workflow:**
+
+```bash
+# Start Home Assistant locally (available at http://localhost:8123)
+script/develop
+
+# Lint and format
+script/lint
+
+# Run tests
+pytest
+
+# Update dependencies after changing requirements.txt
+uv pip install -r requirements.txt
+```
 
 ## License
 
