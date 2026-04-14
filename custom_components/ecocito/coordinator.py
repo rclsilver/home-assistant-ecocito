@@ -1,10 +1,9 @@
-"""Data update coordinator for the Lidarr integration."""
+"""Data update coordinator for the Ecocito integration."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from datetime import datetime, timedelta
-from typing import Generic, TypeVar
 from zoneinfo import ZoneInfo
 
 from homeassistant.config_entries import ConfigEntry
@@ -14,12 +13,12 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .client import CollectionEvent, EcocitoClient, WasteDepotVisit
 from .const import DOMAIN, LOGGER
-from .errors import CannotConnectError, InvalidAuthenticationError
-
-T = TypeVar("T", bound=list[CollectionEvent] | list[WasteDepotVisit])
+from .errors import CannotConnectError, EcocitoError, InvalidAuthenticationError
 
 
-class EcocitoDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
+class EcocitoDataUpdateCoordinator[T: list[CollectionEvent] | list[WasteDepotVisit]](
+    DataUpdateCoordinator[T], ABC
+):
     """Data update coordinator for the Ecocito integration."""
 
     config_entry: ConfigEntry
@@ -46,9 +45,10 @@ class EcocitoDataUpdateCoordinator(DataUpdateCoordinator[T], Generic[T], ABC):
         except CannotConnectError as ex:
             raise UpdateFailed(ex) from ex
         except InvalidAuthenticationError as ex:
-            raise ConfigEntryAuthFailed(
-                "Credentials are no longer valid. Please reauthenticate"
-            ) from ex
+            msg = "Credentials are no longer valid. Please reauthenticate"
+            raise ConfigEntryAuthFailed(msg) from ex
+        except EcocitoError as ex:
+            raise UpdateFailed(ex) from ex
 
     @abstractmethod
     async def _fetch_data(self) -> T:
@@ -62,17 +62,25 @@ class GarbageCollectionsDataUpdateCoordinator(
     """Garbage collections list update from Ecocito."""
 
     def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int
+        self,
+        hass: HomeAssistant,
+        client: EcocitoClient,
+        year_offset: int,
+        location: str | None = None,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(hass, client)
         self._year_offset = year_offset
+        self._location = location
 
     async def _fetch_data(self) -> list[CollectionEvent]:
         """Fetch the data."""
-        return await self.client.get_garbage_collections(
+        events = await self.client.get_garbage_collections(
             datetime.now(tz=self._time_zone).year + self._year_offset
         )
+        if self._location is not None:
+            events = [e for e in events if e.location == self._location]
+        return events
 
 
 class RecyclingCollectionsDataUpdateCoordinator(
@@ -81,17 +89,25 @@ class RecyclingCollectionsDataUpdateCoordinator(
     """Recycling collections list update from Ecocito."""
 
     def __init__(
-        self, hass: HomeAssistant, client: EcocitoClient, year_offset: int
+        self,
+        hass: HomeAssistant,
+        client: EcocitoClient,
+        year_offset: int,
+        location: str | None = None,
     ) -> None:
         """Initialize the coordinator."""
         super().__init__(hass, client)
         self._year_offset = year_offset
+        self._location = location
 
     async def _fetch_data(self) -> list[CollectionEvent]:
         """Fetch the data."""
-        return await self.client.get_recycling_collections(
+        events = await self.client.get_recycling_collections(
             datetime.now(tz=self._time_zone).year + self._year_offset
         )
+        if self._location is not None:
+            events = [e for e in events if e.location == self._location]
+        return events
 
 
 class WasteDepotVisitsDataUpdateCoordinator(
@@ -106,7 +122,7 @@ class WasteDepotVisitsDataUpdateCoordinator(
         super().__init__(hass, client)
         self._year_offset = year_offset
 
-    async def _fetch_data(self) -> list[CollectionEvent]:
+    async def _fetch_data(self) -> list[WasteDepotVisit]:
         """Fetch the data."""
         return await self.client.get_waste_depot_visits(
             datetime.now(tz=self._time_zone).year + self._year_offset

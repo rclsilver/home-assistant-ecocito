@@ -5,7 +5,10 @@ import logging
 DOMAIN = "ecocito"
 LOGGER = logging.getLogger(__package__)
 
-# Config Flow
+# Config Flow / Options Flow
+
+CONF_HISTORY_YEARS = "history_years"
+DEFAULT_HISTORY_YEARS = 2
 
 # Service Device
 

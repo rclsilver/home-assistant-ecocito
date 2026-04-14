@@ -1,36 +1,168 @@
-# Integration Blueprint
+# Ecocito — Home Assistant Integration
 
 [![GitHub Release][releases-shield]][releases]
 [![GitHub Activity][commits-shield]][commits]
 [![License][license-shield]](LICENSE)
+[![HACS][hacs-shield]][hacs]
 
-Integration to connect with the French waste collection service [Ecocito](https://www.ecocito.com/).
+Intégration Home Assistant pour le service français de collecte des déchets [Ecocito](https://www.ecocito.com/).
 
-## Install with HACS
+Connectez votre compte Ecocito à Home Assistant pour suivre :
+- 🗑️ Vos **collectes d'ordures** (nombre, poids total, dernière collecte)
+- ♻️ Vos **collectes de recyclage** (nombre, poids total, dernière collecte)
+- 🚗 Vos **visites en déchetterie** (nombre de visites)
 
-[![Install with HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=rclsilver&repository=home-assistant-ecocito&category=integration)
+Les données couvrent l'année en cours et les années précédentes (configurable).  
+Si votre compte possède plusieurs adresses, une entité est créée par adresse.
 
-More information about HACS [here](https://hacs.xyz/).
+---
 
-## Manual installation
+## Prérequis
 
-1. Using the tool of choice open the directory (folder) for your HA configuration (where you find `configuration.yaml`).
-1. If you do not have a `custom_components` directory (folder) there, you need to create it.
-1. In the `custom_components` directory (folder) create a new folder called `ecocito`.
-1. Download _all_ the files from the `custom_components/ecocito/` directory (folder) in this repository.
-1. Place the files you downloaded in the new directory (folder) you created.
-1. Restart Home Assistant
-1. In the HA UI go to "Configuration" -> "Integrations" click "+" and search for "Ecocito"
+- Home Assistant ≥ 2024.6.0
+- Un compte Ecocito actif ([ecocito.com](https://www.ecocito.com/))
+- Votre **domaine Ecocito** (ex. `69.ecocito.com` → entrez `69.ecocito.com` ou simplement `69`)
 
-## Contributions are welcome!
+---
 
-If you want to contribute to this please read the [Contribution guidelines](CONTRIBUTING.md)
+## Installation
+
+### Via HACS (recommandé)
+
+[![Ouvrir dans HACS](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=rclsilver&repository=home-assistant-ecocito&category=integration)
+
+1. Cliquez sur le bouton ci-dessus
+2. Installez l'intégration depuis HACS
+3. Redémarrez Home Assistant
+
+### Installation manuelle
+
+1. Ouvrez le dossier de configuration de votre HA (où se trouve `configuration.yaml`)
+2. Créez le dossier `custom_components` s'il n'existe pas
+3. Créez le sous-dossier `custom_components/ecocito`
+4. Téléchargez tous les fichiers de `custom_components/ecocito/` depuis ce dépôt
+5. Copiez-les dans le dossier créé
+6. Redémarrez Home Assistant
+
+---
+
+## Configuration
+
+1. Dans HA, allez dans **Paramètres → Intégrations**
+2. Cliquez sur **Ajouter une intégration** et recherchez **Ecocito**
+3. Renseignez :
+   - **Domaine Ecocito** : votre domaine (ex. `69.ecocito.com`)
+   - **Identifiant** : votre email ou identifiant Ecocito
+   - **Mot de passe** : votre mot de passe Ecocito
+
+### Options (après configuration)
+
+Via **Paramètres → Intégrations → Ecocito → Configurer** :
+
+| Option | Défaut | Description |
+|--------|--------|-------------|
+| **Années d'historique** | 2 | Nombre d'années précédentes à afficher (0–5) |
+
+---
+
+## Entités créées
+
+> Pour chaque adresse de votre compte, un **appareil** distinct est créé avec les capteurs suivants.
+
+### Année en cours
+
+| Entité | Unité | Description |
+|--------|-------|-------------|
+| Nombre de collectes d'ordures | — | Nombre total de collectes d'ordures ménagères |
+| Poids total des ordures collectées | kg | Poids cumulé des ordures collectées |
+| Poids de la dernière collecte d'ordures | kg | Poids lors de la dernière collecte |
+| Nombre de collectes de recyclage | — | Nombre total de collectes de recyclage |
+| Poids total du recyclage collecté | kg | Poids cumulé du recyclage collecté |
+| Poids de la dernière collecte de recyclage | kg | Poids lors de la dernière collecte |
+| Nombre de visites en déchetterie | — | Nombre de visites effectuées |
+
+### Années précédentes _(une par année selon la configuration, suffixées `(N-n)` : `N-1`, `N-2`, etc.)_
+
+| Entité | Unité |
+|--------|-------|
+| Nombre de collectes d'ordures (N-n) | — |
+| Poids total des ordures collectées (N-n) | kg |
+| Nombre de collectes de recyclage (N-n) | — |
+| Poids total du recyclage collecté (N-n) | kg |
+| Nombre de visites en déchetterie (N-n) | — |
+
+---
+
+## Exemples d'automatisations
+
+### Notification lors d'une nouvelle collecte
+
+```yaml
+automation:
+  - alias: "Notification collecte d'ordures"
+    trigger:
+      - platform: state
+        entity_id: sensor.ecocito_nombre_de_collectes_d_ordures
+    action:
+      - service: notify.mobile_app
+        data:
+          message: >
+            Nouvelle collecte enregistrée !
+            Total cette année : {{ states('sensor.ecocito_nombre_de_collectes_d_ordures') }} collectes
+            pour {{ states('sensor.ecocito_poids_total_des_ordures_collectees') }} kg.
+```
+
+### Affichage dans un dashboard Lovelace
+
+```yaml
+type: entities
+title: Ecocito — Déchets
+entities:
+  - entity: sensor.ecocito_nombre_de_collectes_d_ordures
+  - entity: sensor.ecocito_poids_total_des_ordures_collectees
+  - entity: sensor.ecocito_poids_de_la_derniere_collecte_d_ordures
+  - entity: sensor.ecocito_nombre_de_collectes_de_recyclage
+  - entity: sensor.ecocito_poids_total_du_recyclage_collecte
+  - entity: sensor.ecocito_nombre_de_visites_en_decheterie
+```
+
+---
+
+## Dépannage
+
+### Les capteurs affichent "Indisponible"
+
+- Vérifiez que votre identifiant et mot de passe sont corrects
+- Vérifiez que votre domaine Ecocito est correct (ex. `69.ecocito.com`)
+- Consultez les logs HA : **Paramètres → Système → Journaux** et cherchez `ecocito`
+
+### Les données ne se mettent pas à jour
+
+- Les données sont rafraîchies toutes les **5 minutes**
+- En cas d'erreur réseau, l'intégration réessaie jusqu'à 3 fois automatiquement
+- Si la session expire, une ré-authentification automatique est tentée
+
+### Plusieurs adresses mais une seule entité visible
+
+- L'intégration détecte les adresses depuis les données de collecte
+- Si vous avez récemment ajouté une adresse, attendez la prochaine mise à jour ou redémarrez HA
+
+### Reconfigurer les identifiants
+
+**Paramètres → Intégrations → Ecocito → (⋮) → Reconfigurer**
+
+---
+
+## Contribution
+
+Les contributions sont les bienvenues ! Consultez le [guide de contribution](CONTRIBUTING.md).
 
 ---
 
 [commits-shield]: https://img.shields.io/github/commit-activity/y/rclsilver/home-assistant-ecocito.svg?style=for-the-badge
 [commits]: https://github.com/rclsilver/home-assistant-ecocito/commits/master
-[exampleimg]: example.png
+[hacs-shield]: https://img.shields.io/badge/HACS-Custom-orange.svg?style=for-the-badge
+[hacs]: https://hacs.xyz/
 [license-shield]: https://img.shields.io/github/license/rclsilver/home-assistant-ecocito.svg?style=for-the-badge
 [releases-shield]: https://img.shields.io/github/release/rclsilver/home-assistant-ecocito.svg?style=for-the-badge
 [releases]: https://github.com/rclsilver/home-assistant-ecocito/releases
