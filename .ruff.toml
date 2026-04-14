@@ -30,5 +30,15 @@ fixture-parentheses = false
 [lint.pyupgrade]
 keep-runtime-typing = true
 
+[lint.per-file-ignores]
+"tests/**" = [
+    "S101",    # Use of assert is standard in pytest
+    "SLF001",  # Private member access is acceptable in tests
+    "D",       # Docstrings not required in tests
+    "PLR2004", # Magic values acceptable in test assertions
+    "FBT001",  # Boolean positional args acceptable in fixture overrides
+    "PLR0912", # Too many branches acceptable in verify_cleanup override
+]
+
 [lint.mccabe]
 max-complexity = 25
