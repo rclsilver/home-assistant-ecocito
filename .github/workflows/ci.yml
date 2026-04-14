@@ -1,0 +1,133 @@
+name: "CI"
+
+on:
+  push:
+    branches:
+      - "master"
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+  pull_request:
+    branches:
+      - "master"
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: "Lint"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4.2.2"
+
+      - name: "Set up Python"
+        uses: "actions/setup-python@v5.3.0"
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: "Install requirements"
+        run: python3 -m pip install -r requirements.txt
+
+      - name: "Lint"
+        run: python3 -m ruff check .
+
+      - name: "Format"
+        run: python3 -m ruff format . --check
+
+  tests:
+    name: "Tests"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4.2.2"
+
+      - name: "Set up Python"
+        uses: "actions/setup-python@v5.3.0"
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: "Install requirements"
+        run: |
+          python3 -m pip install -r requirements.txt
+          python3 -m pip install -r requirements.test.txt
+
+      - name: "Run tests"
+        run: python3 -m pytest tests/ -v
+
+  hassfest:
+    name: "Hassfest"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4.2.2"
+
+      - name: "Run hassfest validation"
+        uses: "home-assistant/actions/hassfest@master"
+
+  hacs:
+    name: "HACS"
+    runs-on: "ubuntu-latest"
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4.2.2"
+
+      - name: "Run HACS validation"
+        uses: "hacs/action@main"
+        with:
+          category: "integration"
+          # Remove this 'ignore' key when brand images have been added to
+          # https://github.com/home-assistant/brands
+          ignore: "brands"
+
+  release:
+    name: "Release"
+    runs-on: "ubuntu-latest"
+    needs: [lint, tests, hassfest, hacs]
+    if: >
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v'))
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: "Checkout the repository"
+        uses: "actions/checkout@v4.2.2"
+        with:
+          fetch-depth: ${{ !startsWith(github.ref, 'refs/tags/v') && 20 || 1 }}
+          fetch-tags: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: "Get version"
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            version="${GITHUB_REF#refs/tags/}"
+          else
+            version=$(git describe --tag --match 'v*.*.*' 2>/dev/null || true)
+            if [ -z "${version}" ]; then
+              commit_count=$(git rev-list --all --count)
+              version="0.0.0-${commit_count}-$(git rev-parse --short HEAD)"
+            fi
+          fi
+          echo "version=$version" >> ${GITHUB_ENV}
+
+      - name: "ZIP the integration directory"
+        shell: "bash"
+        run: |
+          set -x
+          cd "${{ github.workspace }}/custom_components/ecocito"
+          jq --arg version "${version}" '.version = $version' manifest.json > manifest.tmp.json && mv manifest.tmp.json manifest.json
+          zip ecocito-${version}.zip -r ./
+
+      - name: "Publish the release"
+        uses: "marvinpinto/action-automatic-releases@latest"
+        with:
+          repo_token: "${{ secrets.GITHUB_TOKEN }}"
+          automatic_release_tag: ${{ !startsWith(github.ref, 'refs/tags/v') && 'latest' || null }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+          title: ${{ startsWith(github.ref, 'refs/tags/v') && env.version || 'Development Build' }}
+          files: |
+            ${{ github.workspace }}/custom_components/ecocito/ecocito-${{ env.version }}.zip
