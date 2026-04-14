@@ -1,4 +1,4 @@
-"""Errors for the Hue component."""
+"""Errors for the Ecocito integration."""
 
 from homeassistant.exceptions import HomeAssistantError
 
