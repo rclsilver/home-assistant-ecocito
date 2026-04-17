@@ -10,11 +10,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_DOMAIN, CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 
-from .client import EcocitoClient
+from .client import CollectionType, EcocitoClient
 from .const import CONF_HISTORY_YEARS, DEFAULT_HISTORY_YEARS
 from .coordinator import (
-    GarbageCollectionsDataUpdateCoordinator,
-    RecyclingCollectionsDataUpdateCoordinator,
+    CollectionEventsDataUpdateCoordinator,
+    CollectionTypesDataUpdateCoordinator,
     WasteDepotVisitsDataUpdateCoordinator,
 )
 
@@ -27,8 +27,7 @@ class EcocitoYearCoordinators:
 
     year: int
     year_offset: int
-    garbage: GarbageCollectionsDataUpdateCoordinator
-    recycling: RecyclingCollectionsDataUpdateCoordinator
+    collection_types: dict[str, CollectionEventsDataUpdateCoordinator]
     waste_depot: WasteDepotVisitsDataUpdateCoordinator
 
 
@@ -41,7 +40,15 @@ class EcocitoAddressData:
     coordinators: list[EcocitoYearCoordinators]
 
 
-type EcocitoConfigEntry = ConfigEntry[list[EcocitoAddressData]]
+@dataclass(kw_only=True, slots=True)
+class EcocitoData:
+    """All runtime data for the integration."""
+
+    collection_types_coordinator: CollectionTypesDataUpdateCoordinator
+    addresses: list[EcocitoAddressData]
+
+
+type EcocitoConfigEntry = ConfigEntry[EcocitoData]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> bool:
@@ -53,22 +60,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
     )
     await client.authenticate()
 
-    history_years = entry.options.get(CONF_HISTORY_YEARS, DEFAULT_HISTORY_YEARS)
+    history_years = int(entry.options.get(CONF_HISTORY_YEARS, DEFAULT_HISTORY_YEARS))
     time_zone = ZoneInfo(hass.config.time_zone)
     current_year = datetime.now(tz=time_zone).year
 
-    addresses = await client.get_addresses(current_year)
+    # Discover all collection types from the Ecocito page. This replaces the
+    # previous hardcoded garbage (15) / recycling (16) type IDs.
+    collection_types: list[CollectionType] = await client.get_collection_types()
+
+    addresses = await client.get_addresses(current_year, collection_types)
     if not addresses:
         addresses = [None]
 
-    # Note: address discovery happens once at setup time. Adding or removing
-    # addresses on the Ecocito account requires reloading the integration to
-    # be reflected in Home Assistant.
+    # Note: address and type discovery happen once at setup time. Adding or
+    # removing addresses/types on the Ecocito account requires reloading the
+    # integration. Type changes are also detected automatically by the
+    # CollectionTypesDataUpdateCoordinator (hourly poll).
     single_address = len(addresses) <= 1
 
     # Create one WasteDepotVisitsDataUpdateCoordinator per year offset so that
-    # waste-depot visits (which are account-wide, not per address) are fetched
-    # only once per year regardless of how many addresses are configured.
+    # waste-depot visits (account-wide, not per address) are fetched only once
+    # per year regardless of how many addresses are configured.
     waste_depot_by_offset: dict[int, WasteDepotVisitsDataUpdateCoordinator] = {
         year_offset: WasteDepotVisitsDataUpdateCoordinator(hass, client, year_offset)
         for year_offset in range(0, -(history_years + 1), -1)
@@ -79,18 +91,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
         year_coordinators: list[EcocitoYearCoordinators] = []
         for year_offset in range(0, -(history_years + 1), -1):
             year = current_year + year_offset
-            garbage = GarbageCollectionsDataUpdateCoordinator(
-                hass, client, year_offset, location=address
-            )
-            recycling = RecyclingCollectionsDataUpdateCoordinator(
-                hass, client, year_offset, location=address
-            )
+            type_coordinators: dict[str, CollectionEventsDataUpdateCoordinator] = {
+                ctype.id: CollectionEventsDataUpdateCoordinator(
+                    hass, client, ctype, year_offset, location=address
+                )
+                for ctype in collection_types
+            }
             year_coordinators.append(
                 EcocitoYearCoordinators(
                     year=year,
                     year_offset=year_offset,
-                    garbage=garbage,
-                    recycling=recycling,
+                    collection_types=type_coordinators,
                     waste_depot=waste_depot_by_offset[year_offset],
                 )
             )
@@ -105,12 +116,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
     # Refresh per-address coordinators, then waste-depot ones (once per year).
     for address_data in all_address_data:
         for year_coords in address_data.coordinators:
-            await year_coords.garbage.async_config_entry_first_refresh()
-            await year_coords.recycling.async_config_entry_first_refresh()
+            for coordinator in year_coords.collection_types.values():
+                await coordinator.async_config_entry_first_refresh()
     for waste_depot in waste_depot_by_offset.values():
         await waste_depot.async_config_entry_first_refresh()
 
-    entry.runtime_data = all_address_data
+    # The collection types coordinator polls hourly and reloads the integration
+    # if the available types have changed. Seed it with the already-fetched types
+    # to avoid a redundant HTTP request on startup/reload.
+    known_type_ids = frozenset(ctype.id for ctype in collection_types)
+    types_coordinator = CollectionTypesDataUpdateCoordinator(
+        hass, client, known_type_ids
+    )
+    types_coordinator.async_set_updated_data(collection_types)
+
+    entry.runtime_data = EcocitoData(
+        collection_types_coordinator=types_coordinator,
+        addresses=all_address_data,
+    )
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
 

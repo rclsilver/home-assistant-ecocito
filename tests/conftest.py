@@ -16,8 +16,11 @@ from homeassistant.core import HassJob
 from homeassistant.util.async_ import get_scheduled_timer_handles
 from pytest_homeassistant_custom_component.common import INSTANCES
 
-from custom_components.ecocito.client import CollectionEvent, WasteDepotVisit
-from custom_components.ecocito.const import ECOCITO_GARBAGE_COLLECTION_TYPE
+from custom_components.ecocito.client import (
+    CollectionEvent,
+    CollectionType,
+    WasteDepotVisit,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -96,11 +99,20 @@ def mock_client() -> MagicMock:
     """Return a mocked EcocitoClient with async methods returning empty data."""
     client = MagicMock()
     client.authenticate = AsyncMock()
-    client.get_garbage_collections = AsyncMock(return_value=[])
-    client.get_recycling_collections = AsyncMock(return_value=[])
+    client.get_collection_types = AsyncMock(return_value=[])
+    client.get_collection_events = AsyncMock(return_value=[])
     client.get_waste_depot_visits = AsyncMock(return_value=[])
     client.get_addresses = AsyncMock(return_value=[])
     return client
+
+
+@pytest.fixture
+def sample_collection_types() -> list[CollectionType]:
+    """Return a list of 2 sample CollectionType instances."""
+    return [
+        CollectionType(id="15", name="Ordures ménagères"),
+        CollectionType(id="16", name="Recyclage"),
+    ]
 
 
 @pytest.fixture
@@ -110,13 +122,13 @@ def sample_collection_events() -> list[CollectionEvent]:
         CollectionEvent(
             date=datetime(2024, 3, 15, tzinfo=UTC),
             location="12 rue de la Paix",
-            type=str(ECOCITO_GARBAGE_COLLECTION_TYPE),
+            type="15",
             quantity=120.0,
         ),
         CollectionEvent(
             date=datetime(2024, 3, 29, tzinfo=UTC),
             location="12 rue de la Paix",
-            type=str(ECOCITO_GARBAGE_COLLECTION_TYPE),
+            type="15",
             quantity=80.0,
         ),
     ]
