@@ -60,7 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: EcocitoConfigEntry) -> b
     )
     await client.authenticate()
 
-    history_years = entry.options.get(CONF_HISTORY_YEARS, DEFAULT_HISTORY_YEARS)
+    history_years = int(entry.options.get(CONF_HISTORY_YEARS, DEFAULT_HISTORY_YEARS))
     time_zone = ZoneInfo(hass.config.time_zone)
     current_year = datetime.now(tz=time_zone).year
 
