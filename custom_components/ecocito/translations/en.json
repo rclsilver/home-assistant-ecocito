@@ -33,38 +33,83 @@
   },
   "entity": {
     "sensor": {
-      "garbage_collections_count": {
+      "garbage_count": {
         "name": "Number of garbage collections"
       },
-      "garbage_collections_total": {
+      "garbage_total": {
         "name": "Total weight of collected garbage"
       },
       "latest_garbage_collection": {
         "name": "Weight of the latest garbage collection"
       },
-      "recycling_collections_count": {
+      "garbage_count_n": {
+        "name": "Number of garbage collections (N-{n})"
+      },
+      "garbage_total_n": {
+        "name": "Total weight of collected garbage (N-{n})"
+      },
+      "recycling_count": {
         "name": "Number of recycling collections"
       },
-      "recycling_collections_total": {
+      "recycling_total": {
         "name": "Total weight of collected recycling"
       },
       "latest_recycling_collection": {
         "name": "Weight of the latest recycling collection"
       },
-      "waste_deposit_visit": {
-        "name": "Number of visits to waste deposit"
-      },
-      "garbage_collections_count_n": {
-        "name": "Number of garbage collections (N-{n})"
-      },
-      "garbage_collections_total_n": {
-        "name": "Total weight of collected garbage (N-{n})"
-      },
-      "recycling_collections_count_n": {
+      "recycling_count_n": {
         "name": "Number of recycling collections (N-{n})"
       },
-      "recycling_collections_total_n": {
+      "recycling_total_n": {
         "name": "Total weight of collected recycling (N-{n})"
+      },
+      "green_waste_count": {
+        "name": "Number of green waste collections"
+      },
+      "green_waste_total": {
+        "name": "Total weight of collected green waste"
+      },
+      "latest_green_waste_collection": {
+        "name": "Weight of the latest green waste collection"
+      },
+      "green_waste_count_n": {
+        "name": "Number of green waste collections (N-{n})"
+      },
+      "green_waste_total_n": {
+        "name": "Total weight of collected green waste (N-{n})"
+      },
+      "badge_count": {
+        "name": "Number of badge collections"
+      },
+      "badge_total": {
+        "name": "Total weight of collected badge"
+      },
+      "latest_badge_collection": {
+        "name": "Weight of the latest badge collection"
+      },
+      "badge_count_n": {
+        "name": "Number of badge collections (N-{n})"
+      },
+      "badge_total_n": {
+        "name": "Total weight of collected badge (N-{n})"
+      },
+      "collection_count": {
+        "name": "Number of {type} collections"
+      },
+      "collection_total": {
+        "name": "Total weight of collected {type}"
+      },
+      "latest_collection": {
+        "name": "Weight of the latest {type} collection"
+      },
+      "collection_count_n": {
+        "name": "Number of {type} collections (N-{n})"
+      },
+      "collection_total_n": {
+        "name": "Total weight of collected {type} (N-{n})"
+      },
+      "waste_deposit_visit": {
+        "name": "Number of visits to waste deposit"
       },
       "waste_deposit_visit_n": {
         "name": "Number of visits to waste deposit (N-{n})"
