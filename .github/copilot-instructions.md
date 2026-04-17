@@ -80,9 +80,16 @@ All collection/depot URLs are matched with `re.compile(re.escape(base_url))`.
 
 ---
 
-## Out of scope for this integration
+## Git workflow
 
-- **Periodic address re-discovery**: not implemented; reload is the intended mechanism.
+- **Squash review fixes into the original commit they fix** rather than adding separate
+  "address review" commits. If a fix belongs to a `feat` commit, amend that commit;
+  if it fixes a `fix` commit, amend that one. Use `git rebase -i` / `--fixup` as needed.
+  Force-push the branch after rebasing.
+
+---
+
+## Out of scope for this integration
 - **`async_migrate_entry`**: the config entry data/options schema is backward-compatible;
   no migration is needed (existing keys use `.get()` with defaults).
 - **Multiple config entries**: `single_config_entry: true` in `manifest.json` prevents

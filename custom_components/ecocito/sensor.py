@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import functools
+import json
+import pathlib
+import re
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -18,9 +23,49 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 
 from . import EcocitoConfigEntry
-from .client import CollectionEvent, EcocitoEvent
-from .const import DEVICE_ATTRIBUTION
+from .client import CollectionEvent, CollectionType, EcocitoEvent
+from .const import (
+    COLLECTION_TYPE_DEFAULT_HINT,
+    COLLECTION_TYPE_HINTS,
+    DEVICE_ATTRIBUTION,
+    CollectionTypeHint,
+)
 from .entity import EcocitoEntity
+
+
+@functools.lru_cache(maxsize=1)
+def _get_english_sensor_names() -> dict[str, str]:
+    """Lazily load and cache English sensor names from strings.json."""
+    try:
+        data = json.loads((pathlib.Path(__file__).parent / "strings.json").read_text())
+        return {
+            k: v.get("name", k)
+            for k, v in data.get("entity", {}).get("sensor", {}).items()
+        }
+    except (OSError, ValueError):
+        return {}
+
+
+def _english_name(translation_key: str, placeholders: dict | None) -> str:
+    """Return the English name for a translation key with placeholders resolved."""
+    name = _get_english_sensor_names().get(translation_key, translation_key)
+    if placeholders:
+        with contextlib.suppress(KeyError, ValueError):
+            name = name.format(**placeholders)
+    return name
+
+
+def _resolve_collection_type_hint(name: str) -> CollectionTypeHint:
+    """
+    Return the hint (translation key + icon) for a collection type name.
+
+    Iterates COLLECTION_TYPE_HINTS in order; the first matching pattern wins.
+    Falls back to COLLECTION_TYPE_DEFAULT_HINT for unknown types.
+    """
+    for pattern, hint in COLLECTION_TYPE_HINTS:
+        if re.search(pattern, name, re.IGNORECASE):
+            return hint
+    return COLLECTION_TYPE_DEFAULT_HINT
 
 
 def get_count(data: list[Any]) -> int:
@@ -62,164 +107,127 @@ class EcocitoSensorEntityDescription[T](SensorEntityDescription):
 
     value_fn: Callable[[T], StateType] = dataclasses.field(default=None)  # type: ignore[assignment]
     last_updated_fn: Callable[[T], datetime | None] = dataclasses.field(default=None)  # type: ignore[assignment]
+    # Stable English name used for entity ID generation (independent of HA language).
+    english_name: str = dataclasses.field(default="")
 
 
-def _build_sensor_descriptions(
+def _build_collection_type_sensor_descriptions(
+    collection_type: CollectionType,
     year_offset: int,
-) -> list[tuple[str, EcocitoSensorEntityDescription]]:
-    """Build sensor entity descriptions for a given year offset."""
+) -> list[EcocitoSensorEntityDescription]:
+    """Build sensor entity descriptions for a given collection type and year offset."""
+    type_id = collection_type.id
+    hint = _resolve_collection_type_hint(collection_type.name)
+    type_key = hint.translation_key
+    icon = hint.icon
+
+    # For known types (specific translation key), no {type} placeholder needed.
+    # For unknown types (generic "collection" key), inject the raw name.
+    is_generic = type_key == COLLECTION_TYPE_DEFAULT_HINT.translation_key
+    type_placeholders = {"type": collection_type.name} if is_generic else None
+
     if year_offset == 0:
+        count_key = f"{type_key}_count"
+        total_key = f"{type_key}_total"
+        latest_key = (
+            "latest_collection" if is_generic else f"latest_{type_key}_collection"
+        )
         return [
-            (
-                "garbage",
-                EcocitoSensorEntityDescription(
-                    key="garbage_collections_count",
-                    translation_key="garbage_collections_count",
-                    value_fn=get_count,
-                    last_updated_fn=get_latest_date,
-                    icon="mdi:trash-can",
-                    state_class=SensorStateClass.TOTAL,
-                ),
+            EcocitoSensorEntityDescription(
+                key=f"collection_count_{type_id}",
+                translation_key=count_key,
+                translation_placeholders=type_placeholders,
+                english_name=_english_name(count_key, type_placeholders),
+                value_fn=get_count,
+                last_updated_fn=get_latest_date,
+                icon=icon,
+                state_class=SensorStateClass.TOTAL,
             ),
-            (
-                "garbage",
-                EcocitoSensorEntityDescription(
-                    key="garbage_collections_total",
-                    translation_key="garbage_collections_total",
-                    icon="mdi:trash-can",
-                    value_fn=get_event_collections_weight,
-                    last_updated_fn=get_latest_date,
-                    native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-                    state_class=SensorStateClass.TOTAL,
-                    suggested_display_precision=0,
-                ),
+            EcocitoSensorEntityDescription(
+                key=f"collection_total_{type_id}",
+                translation_key=total_key,
+                translation_placeholders=type_placeholders,
+                english_name=_english_name(total_key, type_placeholders),
+                icon=icon,
+                value_fn=get_event_collections_weight,
+                last_updated_fn=get_latest_date,
+                native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+                state_class=SensorStateClass.TOTAL,
+                suggested_display_precision=0,
             ),
-            (
-                "garbage",
-                EcocitoSensorEntityDescription(
-                    key="latest_garbage_collections",
-                    translation_key="latest_garbage_collection",
-                    icon="mdi:trash-can",
-                    value_fn=get_latest_event_collection_weight,
-                    last_updated_fn=get_latest_date,
-                    native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    suggested_display_precision=0,
-                ),
-            ),
-            (
-                "recycling",
-                EcocitoSensorEntityDescription(
-                    key="recycling_collections_count",
-                    translation_key="recycling_collections_count",
-                    icon="mdi:recycle",
-                    value_fn=get_count,
-                    last_updated_fn=get_latest_date,
-                    state_class=SensorStateClass.TOTAL,
-                ),
-            ),
-            (
-                "recycling",
-                EcocitoSensorEntityDescription(
-                    key="recycling_collections_total",
-                    translation_key="recycling_collections_total",
-                    icon="mdi:recycle",
-                    value_fn=get_event_collections_weight,
-                    last_updated_fn=get_latest_date,
-                    native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-                    state_class=SensorStateClass.TOTAL,
-                    suggested_display_precision=0,
-                ),
-            ),
-            (
-                "recycling",
-                EcocitoSensorEntityDescription(
-                    key="latest_recycling_collections",
-                    translation_key="latest_recycling_collection",
-                    icon="mdi:recycle",
-                    value_fn=get_latest_event_collection_weight,
-                    last_updated_fn=get_latest_date,
-                    native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    suggested_display_precision=0,
-                ),
-            ),
-            (
-                "waste_depot",
-                EcocitoSensorEntityDescription(
-                    key="waste_deposit_visit",
-                    translation_key="waste_deposit_visit",
-                    icon="mdi:car",
-                    value_fn=get_count,
-                    last_updated_fn=get_latest_date,
-                    state_class=SensorStateClass.TOTAL,
-                ),
+            EcocitoSensorEntityDescription(
+                key=f"latest_collection_{type_id}",
+                translation_key=latest_key,
+                translation_placeholders=type_placeholders,
+                english_name=_english_name(latest_key, type_placeholders),
+                icon=icon,
+                value_fn=get_latest_event_collection_weight,
+                last_updated_fn=get_latest_date,
+                native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+                state_class=SensorStateClass.MEASUREMENT,
+                suggested_display_precision=0,
             ),
         ]
+    n = abs(year_offset)
+    n_placeholders = (
+        {"n": str(n)} if not is_generic else {"type": collection_type.name, "n": str(n)}
+    )
+    count_n_key = f"{type_key}_count_n"
+    total_n_key = f"{type_key}_total_n"
     return [
-        (
-            "garbage",
-            EcocitoSensorEntityDescription(
-                key=f"garbage_collections_count_n{abs(year_offset)}",
-                translation_key="garbage_collections_count_n",
-                translation_placeholders={"n": str(abs(year_offset))},
-                value_fn=get_count,
-                last_updated_fn=get_latest_date,
-                icon="mdi:trash-can",
-                state_class=SensorStateClass.TOTAL,
-            ),
+        EcocitoSensorEntityDescription(
+            key=f"collection_count_{type_id}_n{n}",
+            translation_key=count_n_key,
+            translation_placeholders=n_placeholders,
+            english_name=_english_name(count_n_key, n_placeholders),
+            value_fn=get_count,
+            last_updated_fn=get_latest_date,
+            icon=icon,
+            state_class=SensorStateClass.TOTAL,
         ),
-        (
-            "garbage",
-            EcocitoSensorEntityDescription(
-                key=f"garbage_collections_total_n{abs(year_offset)}",
-                translation_key="garbage_collections_total_n",
-                translation_placeholders={"n": str(abs(year_offset))},
-                icon="mdi:trash-can",
-                value_fn=get_event_collections_weight,
-                last_updated_fn=get_latest_date,
-                native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-                state_class=SensorStateClass.TOTAL,
-                suggested_display_precision=0,
-            ),
+        EcocitoSensorEntityDescription(
+            key=f"collection_total_{type_id}_n{n}",
+            translation_key=total_n_key,
+            translation_placeholders=n_placeholders,
+            english_name=_english_name(total_n_key, n_placeholders),
+            icon=icon,
+            value_fn=get_event_collections_weight,
+            last_updated_fn=get_latest_date,
+            native_unit_of_measurement=UnitOfMass.KILOGRAMS,
+            state_class=SensorStateClass.TOTAL,
+            suggested_display_precision=0,
         ),
-        (
-            "recycling",
+    ]
+
+
+def _build_waste_depot_sensor_descriptions(
+    year_offset: int,
+) -> list[EcocitoSensorEntityDescription]:
+    """Build waste depot sensor entity descriptions for a given year offset."""
+    if year_offset == 0:
+        return [
             EcocitoSensorEntityDescription(
-                key=f"recycling_collections_count_n{abs(year_offset)}",
-                translation_key="recycling_collections_count_n",
-                translation_placeholders={"n": str(abs(year_offset))},
-                icon="mdi:recycle",
-                value_fn=get_count,
-                last_updated_fn=get_latest_date,
-                state_class=SensorStateClass.TOTAL,
-            ),
-        ),
-        (
-            "recycling",
-            EcocitoSensorEntityDescription(
-                key=f"recycling_collections_total_n{abs(year_offset)}",
-                translation_key="recycling_collections_total_n",
-                translation_placeholders={"n": str(abs(year_offset))},
-                icon="mdi:recycle",
-                value_fn=get_event_collections_weight,
-                last_updated_fn=get_latest_date,
-                native_unit_of_measurement=UnitOfMass.KILOGRAMS,
-                state_class=SensorStateClass.TOTAL,
-                suggested_display_precision=0,
-            ),
-        ),
-        (
-            "waste_depot",
-            EcocitoSensorEntityDescription(
-                key=f"waste_deposit_visit_n{abs(year_offset)}",
-                translation_key="waste_deposit_visit_n",
-                translation_placeholders={"n": str(abs(year_offset))},
+                key="waste_deposit_visit",
+                translation_key="waste_deposit_visit",
+                english_name=_english_name("waste_deposit_visit", None),
                 icon="mdi:car",
                 value_fn=get_count,
                 last_updated_fn=get_latest_date,
                 state_class=SensorStateClass.TOTAL,
             ),
+        ]
+    return [
+        EcocitoSensorEntityDescription(
+            key=f"waste_deposit_visit_n{abs(year_offset)}",
+            translation_key="waste_deposit_visit_n",
+            translation_placeholders={"n": str(abs(year_offset))},
+            english_name=_english_name(
+                "waste_deposit_visit_n", {"n": str(abs(year_offset))}
+            ),
+            icon="mdi:car",
+            value_fn=get_count,
+            last_updated_fn=get_latest_date,
+            state_class=SensorStateClass.TOTAL,
         ),
     ]
 
@@ -255,23 +263,24 @@ async def async_setup_entry(
     # Waste-depot visits are account-wide (not per address), so the coordinator
     # is shared across all addresses for a given year; only add its sensors once.
     registered_waste_depot: set[int] = set()
-    for address_data in entry.runtime_data:
+    for address_data in entry.runtime_data.addresses:
         location = address_data.location if not address_data.single_address else None
         for year_coords in address_data.coordinators:
-            for coord_attr, description in _build_sensor_descriptions(
-                year_coords.year_offset
-            ):
-                coordinator = getattr(year_coords, coord_attr)
-                if coord_attr == "waste_depot":
-                    coord_id = id(coordinator)
-                    if coord_id in registered_waste_depot:
-                        continue
-                    registered_waste_depot.add(coord_id)
-                    entities.append(
-                        EcocitoSensor(coordinator, description, location=None)
+            for coordinator in year_coords.collection_types.values():
+                entities.extend(
+                    EcocitoSensor(coordinator, description, location=location)
+                    for description in _build_collection_type_sensor_descriptions(
+                        coordinator.collection_type, year_coords.year_offset
                     )
-                else:
-                    entities.append(
-                        EcocitoSensor(coordinator, description, location=location)
+                )
+            waste_depot = year_coords.waste_depot
+            coord_id = id(waste_depot)
+            if coord_id not in registered_waste_depot:
+                registered_waste_depot.add(coord_id)
+                entities.extend(
+                    EcocitoSensor(waste_depot, description, location=None)
+                    for description in _build_waste_depot_sensor_descriptions(
+                        year_coords.year_offset
                     )
+                )
     async_add_entities(entities)

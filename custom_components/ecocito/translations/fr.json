@@ -33,38 +33,83 @@
   },
   "entity": {
     "sensor": {
-      "garbage_collections_count": {
-        "name": "Nombre de collectes d'ordures"
+      "garbage_count": {
+        "name": "Nombre de collectes d'ordures ménagères"
       },
-      "garbage_collections_total": {
-        "name": "Poids total des ordures collectées"
+      "garbage_total": {
+        "name": "Poids total des ordures ménagères collectées"
       },
       "latest_garbage_collection": {
-        "name": "Poids de la dernière collecte d'ordures"
+        "name": "Poids de la dernière collecte d'ordures ménagères"
       },
-      "recycling_collections_count": {
+      "garbage_count_n": {
+        "name": "Nombre de collectes d'ordures ménagères (N-{n})"
+      },
+      "garbage_total_n": {
+        "name": "Poids total des ordures ménagères collectées (N-{n})"
+      },
+      "recycling_count": {
         "name": "Nombre de collectes de recyclage"
       },
-      "recycling_collections_total": {
+      "recycling_total": {
         "name": "Poids total du recyclage collecté"
       },
       "latest_recycling_collection": {
         "name": "Poids de la dernière collecte de recyclage"
       },
-      "waste_deposit_visit": {
-        "name": "Nombre de visites en déchetterie"
-      },
-      "garbage_collections_count_n": {
-        "name": "Nombre de collectes d'ordures (N-{n})"
-      },
-      "garbage_collections_total_n": {
-        "name": "Poids total des ordures collectées (N-{n})"
-      },
-      "recycling_collections_count_n": {
+      "recycling_count_n": {
         "name": "Nombre de collectes de recyclage (N-{n})"
       },
-      "recycling_collections_total_n": {
+      "recycling_total_n": {
         "name": "Poids total du recyclage collecté (N-{n})"
+      },
+      "green_waste_count": {
+        "name": "Nombre de collectes de déchets verts"
+      },
+      "green_waste_total": {
+        "name": "Poids total des déchets verts collectés"
+      },
+      "latest_green_waste_collection": {
+        "name": "Poids de la dernière collecte de déchets verts"
+      },
+      "green_waste_count_n": {
+        "name": "Nombre de collectes de déchets verts (N-{n})"
+      },
+      "green_waste_total_n": {
+        "name": "Poids total des déchets verts collectés (N-{n})"
+      },
+      "badge_count": {
+        "name": "Nombre de collectes badge"
+      },
+      "badge_total": {
+        "name": "Poids total des collectes badge"
+      },
+      "latest_badge_collection": {
+        "name": "Poids de la dernière collecte badge"
+      },
+      "badge_count_n": {
+        "name": "Nombre de collectes badge (N-{n})"
+      },
+      "badge_total_n": {
+        "name": "Poids total des collectes badge (N-{n})"
+      },
+      "collection_count": {
+        "name": "Nombre de collectes {type}"
+      },
+      "collection_total": {
+        "name": "Poids total collecté {type}"
+      },
+      "latest_collection": {
+        "name": "Poids de la dernière collecte {type}"
+      },
+      "collection_count_n": {
+        "name": "Nombre de collectes {type} (N-{n})"
+      },
+      "collection_total_n": {
+        "name": "Poids total collecté {type} (N-{n})"
+      },
+      "waste_deposit_visit": {
+        "name": "Nombre de visites en déchetterie"
       },
       "waste_deposit_visit_n": {
         "name": "Nombre de visites en déchetterie (N-{n})"
