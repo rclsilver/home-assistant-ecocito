@@ -136,7 +136,10 @@ async def test_collection_types_coordinator_types_changed(
     coordinator = CollectionTypesDataUpdateCoordinator(hass, mock_client, known)
     coordinator.config_entry = MagicMock()
     coordinator.config_entry.entry_id = "test_entry_id"
-    with patch.object(hass, "async_create_task") as mock_create_task:
+    with (
+        patch.object(hass, "async_create_task") as mock_create_task,
+        patch.object(hass.config_entries, "async_reload", MagicMock()),
+    ):
         result = await coordinator._async_update_data()
 
     assert result == new_types
