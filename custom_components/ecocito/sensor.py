@@ -258,6 +258,11 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up Ecocito sensors based on a config entry."""
+    # Warm the strings.json cache off the event loop so the synchronous
+    # _english_name() lookups below (via _build_*_sensor_descriptions) don't
+    # perform blocking file I/O inside the event loop.
+    await hass.async_add_executor_job(_get_english_sensor_names)
+
     entities: list[EcocitoSensor[Any]] = []
     # Track waste-depot coordinators that have already been added as sensors.
     # Waste-depot visits are account-wide (not per address), so the coordinator
