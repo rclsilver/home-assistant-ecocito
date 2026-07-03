@@ -59,13 +59,13 @@ class EcocitoEntity[T](CoordinatorEntity[EcocitoDataUpdateCoordinator[T]]):
             model=DEVICE_MODEL,
             identifiers={(DOMAIN, identifier)},
         )
-        # Keep track of the full device name for stable entity ID generation.
-        self._device_name = f"{DEVICE_NAME}{device_suffix}"
-
     @property
     def suggested_object_id(self) -> str | None:
         """Return a stable, language-independent object ID using English names."""
+        # With _attr_has_entity_name, HA already prefixes the device name when
+        # building the entity id, so return only the English entity name here;
+        # returning "{device} {name}" produced a doubled ecocito_ecocito_* id.
         english_name = getattr(self.entity_description, "english_name", None)
         if english_name:
-            return f"{self._device_name} {english_name}"
+            return english_name
         return super().suggested_object_id
