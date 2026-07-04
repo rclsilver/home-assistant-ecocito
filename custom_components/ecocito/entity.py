@@ -59,6 +59,7 @@ class EcocitoEntity[T](CoordinatorEntity[EcocitoDataUpdateCoordinator[T]]):
             model=DEVICE_MODEL,
             identifiers={(DOMAIN, identifier)},
         )
+
     @property
     def suggested_object_id(self) -> str | None:
         """Return a stable, language-independent object ID using English names."""
